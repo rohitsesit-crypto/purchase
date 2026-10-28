@@ -12,6 +12,7 @@ import {
   errorMessage,
 } from '@/lib/format';
 import {
+  allocatedByItem,
   delayLabel,
   paidTotalOf,
   pendingAmountOf,
@@ -204,9 +205,13 @@ export const StepSubmitSheet = ({
     if (!state) return { lines, stock: 0, direct: 0 };
 
     const already = receivedByItem(state.receipts);
+    // A later receipt part must only offer what has not been routed yet: the
+    // earlier part's split is already stored and is added to, not replaced.
+    const routed = allocatedByItem(state.allocations);
     state.requirements.forEach((item) => {
       const arrived = already[item.item_name] ?? 0;
-      const available = arrived > 0 ? arrived : item.quantity;
+      const available = Math.max((arrived > 0 ? arrived : item.quantity) - (routed[item.item_name] ?? 0), 0);
+      if (available <= 0) return;
       const entry = routes[item.item_name];
       const chosen: MaterialRoute = entry?.route ?? 'Stock';
       const typed = Math.min(Math.max(Number(entry?.quantity) || 0, 0), available);
@@ -325,6 +330,7 @@ export const StepSubmitSheet = ({
   };
 
   const alreadyReceived = receivedByItem(state.receipts);
+  const routedByItem = allocatedByItem(state.allocations);
 
   return (
     <Sheet
@@ -487,7 +493,12 @@ export const StepSubmitSheet = ({
             {state.requirements.map((item) => {
               const entry = routes[item.item_name] ?? { route: 'Stock' as MaterialRoute, quantity: '' };
               const arrived = alreadyReceived[item.item_name] ?? 0;
-              const available = arrived > 0 ? arrived : item.quantity;
+              // Only what is still un-routed: a later part is split on its own run
+              // and the earlier split is kept, so the same quantity must not show twice.
+              const available = Math.max(
+                (arrived > 0 ? arrived : item.quantity) - (routedByItem[item.item_name] ?? 0),
+                0,
+              );
               const quantity = Math.min(Number(entry.quantity) || 0, available);
               const leftover = Math.max(available - quantity, 0);
               const otherRoute: MaterialRoute = entry.route === 'Stock' ? 'Direct to Client' : 'Stock';
