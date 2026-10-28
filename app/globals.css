@@ -1,0 +1,533 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   Saraswat O2D — design tokens
+   One accent per meaning. Never rely on colour alone; always show a label.
+   ========================================================================== */
+
+:root {
+  --ink: #101a18;
+  --ink-2: #35443f;
+  --muted: #64746f;
+  --faint: #93a29d;
+  --paper: #f5f3ed;
+  --surface: #ffffff;
+  --sunken: #efece3;
+  --line: #e2ded3;
+  --line-strong: #cfc9ba;
+  --petrol: #0b4f45;
+  --petrol-dark: #073b33;
+  --petrol-tint: #e6efec;
+  --steel: #2f5d8a;
+  --steel-tint: #e8eef6;
+  --rust: #a5322a;
+  --rust-tint: #fbeae7;
+  --amber: #b4741a;
+  --amber-tint: #fbf0da;
+  --forest: #1b6b4a;
+  --forest-tint: #e4f1e8;
+  --rail: #0c211e;
+  --rail-text: rgba(255, 255, 255, 0.66);
+  --row-hover: #fbfaf6;
+  --overlay: rgba(11, 32, 28, 0.32);
+  --sheet-shadow: 0 24px 60px -20px rgba(11, 32, 28, 0.35);
+  --font-ui: var(--font-archivo), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.dark {
+  --ink: #edf2ef;
+  --ink-2: #c2cec9;
+  --muted: #93a29d;
+  --faint: #6d7d78;
+  --paper: #0d1614;
+  --surface: #131f1c;
+  --sunken: #1a2724;
+  --line: #24332f;
+  --line-strong: #35473f;
+  --petrol: #2f8d7c;
+  --petrol-dark: #256e61;
+  --petrol-tint: #17322c;
+  --steel: #7ba6cf;
+  --steel-tint: #16283a;
+  --rust: #e08379;
+  --rust-tint: #331a17;
+  --amber: #d9a55a;
+  --amber-tint: #2f2415;
+  --forest: #5fbd8f;
+  --forest-tint: #142b22;
+  --rail: #08120f;
+  --rail-text: rgba(255, 255, 255, 0.6);
+  --row-hover: #172623;
+  --overlay: rgba(0, 0, 0, 0.55);
+  --sheet-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.micro {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.sunken {
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+/* ------------------------------------------------------------------ buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out,
+    box-shadow 140ms ease-out, transform 140ms ease-out;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--petrol);
+  outline-offset: 2px;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--petrol);
+  color: #ffffff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--petrol-dark);
+}
+
+.btn-outline {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--sunken);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--sunken);
+}
+
+.btn-danger {
+  background: var(--rust);
+  color: #ffffff;
+}
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btn-sm {
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-size: 11.5px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+/* ------------------------------------------------------------------- inputs */
+
+.input {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  transition: border-color 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.input::placeholder {
+  color: var(--faint);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--petrol);
+  box-shadow: 0 0 0 3px rgb(11 79 69 / 0.12);
+}
+
+.input:disabled {
+  background: var(--sunken);
+  color: var(--muted);
+}
+
+.input-invalid {
+  border-color: var(--rust);
+}
+
+textarea.input {
+  height: auto;
+  min-height: 68px;
+  padding: 8px 10px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+select.input {
+  appearance: none;
+  padding-right: 26px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2364746f' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--petrol);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------- tags */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tag-petrol { background: var(--petrol-tint); color: var(--petrol); }
+.tag-steel { background: var(--steel-tint); color: var(--steel); }
+.tag-amber { background: var(--amber-tint); color: var(--amber); }
+.tag-rust { background: var(--rust-tint); color: var(--rust); }
+.tag-forest { background: var(--forest-tint); color: var(--forest); }
+.tag-quiet { background: var(--sunken); color: var(--muted); }
+
+/* -------------------------------------------------------------------- stamp */
+
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.stamp-outline {
+  background: transparent !important;
+  color: var(--petrol);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+/* --------------------------------------------------------------------- rail */
+
+.rail-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 36px;
+  margin: 0 8px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: var(--rail-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background 140ms ease-out, color 140ms ease-out;
+}
+
+.rail-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.rail-item[data-active='true'] {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+  box-shadow: inset 2px 0 0 #d8a556;
+}
+
+/* ------------------------------------------------------------------- pieces */
+
+.task-card {
+  transition: border-color 140ms ease-out, box-shadow 140ms ease-out;
+}
+.task-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 2px 0 rgb(16 26 24 / 0.04);
+}
+
+.row-hover:hover {
+  background: var(--row-hover);
+}
+
+.lane-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.lane-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.lane-scroll::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--overlay);
+  backdrop-filter: blur(2px);
+  animation: overlay-in 180ms ease-out;
+}
+
+.sheet {
+  animation: sheet-in 220ms ease-out;
+  box-shadow: var(--sheet-shadow);
+}
+
+.timeline-line {
+  position: absolute;
+  left: 13px;
+  top: 30px;
+  bottom: -6px;
+  width: 1.5px;
+  background: var(--line);
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border-radius: 999px;
+  border: 2px solid rgb(255 255 255 / 0.35);
+  border-top-color: #ffffff;
+  animation: spin 700ms linear infinite;
+}
+
+.spinner-dark {
+  border-color: var(--line-strong);
+  border-top-color: var(--petrol);
+}
+
+@media (max-width: 767px) {
+  .btn { height: 40px; }
+  .btn-sm { height: 32px; }
+  .btn-icon { width: 36px; height: 36px; }
+  .input { height: 40px; }
+}
+
+/* ---------------------------------------------------------------------------
+   Layout aliases
+   The admin and operator screens are written against a small set of semantic
+   names (primary, danger, sidebar…). They are aliases, not new colours, so the
+   warm-paper palette and the dark theme keep working unchanged.
+   ------------------------------------------------------------------------- */
+
+:root {
+  --bg: var(--paper);
+  --surface-2: var(--sunken);
+  --surface-3: var(--line);
+  --border: var(--line);
+  --border-light: var(--line);
+  --text: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-muted: var(--muted);
+  --text-faint: var(--faint);
+  --primary: var(--petrol);
+  --primary-bg: var(--petrol-tint);
+  --success: var(--forest);
+  --warning: var(--amber);
+  --danger: var(--rust);
+  --sidebar-bg: var(--rail);
+  --sidebar-text: rgba(255, 255, 255, 0.66);
+  --sidebar-text-active: #ffffff;
+  --sidebar-active-bg: rgba(255, 255, 255, 0.09);
+}
+
+/* ---------------------------------------------------------------------------
+   Operator palette
+   The operator workspace uses its own blue / violet palette. These are the
+   tokens that palette was drawn from, applied as a scoped override so the admin
+   control room keeps the warm-paper design untouched.
+   ------------------------------------------------------------------------- */
+
+.ref-theme {
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --muted: #64748b;
+  --faint: #94a3b8;
+  --paper: #f8fafc;
+  --surface: #ffffff;
+  --sunken: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+
+  --petrol: #2563eb;
+  --petrol-dark: #1e40af;
+  --petrol-tint: rgba(37, 99, 235, 0.1);
+
+  --steel: #7c3aed;
+  --steel-tint: rgba(124, 58, 237, 0.1);
+
+  --forest: #059669;
+  --forest-tint: rgba(5, 150, 105, 0.1);
+
+  --amber: #f59e0b;
+  --amber-tint: rgba(245, 158, 11, 0.1);
+
+  --rust: #dc2626;
+  --rust-tint: rgba(220, 38, 38, 0.08);
+
+  --rail: #1e3a5f;
+  --rail-text: rgba(255, 255, 255, 0.72);
+  --row-hover: #f8fafc;
+  --overlay: rgba(15, 23, 42, 0.55);
+
+  --bg: var(--paper);
+  --surface-2: var(--sunken);
+  --surface-3: var(--line);
+  --border: var(--line);
+  --border-light: var(--line);
+  --text: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-muted: var(--muted);
+  --text-faint: var(--faint);
+  --primary: var(--petrol);
+  --primary-bg: var(--petrol-tint);
+  --success: var(--forest);
+  --warning: var(--amber);
+  --danger: var(--rust);
+  --sidebar-bg: var(--rail);
+  --sidebar-text: rgba(255, 255, 255, 0.72);
+  --sidebar-text-active: #ffffff;
+  --sidebar-active-bg: rgba(255, 255, 255, 0.14);
+}
+
+.dark .ref-theme {
+  --ink: #e2e8f0;
+  --ink-2: #cbd5e1;
+  --muted: #94a3b8;
+  --faint: #64748b;
+  --paper: #0f172a;
+  --surface: #1e293b;
+  --sunken: #172033;
+  --line: #2b3a52;
+  --line-strong: #3d4f6b;
+
+  --petrol: #3b82f6;
+  --petrol-dark: #2563eb;
+  --petrol-tint: rgba(59, 130, 246, 0.16);
+
+  --steel: #a78bfa;
+  --steel-tint: rgba(167, 139, 250, 0.16);
+
+  --forest: #34d399;
+  --forest-tint: rgba(52, 211, 153, 0.16);
+
+  --amber: #fbbf24;
+  --amber-tint: rgba(251, 191, 36, 0.16);
+
+  --rust: #f87171;
+  --rust-tint: rgba(248, 113, 113, 0.16);
+
+  --rail: #0f1d33;
+  --row-hover: #22304a;
+  --overlay: rgba(0, 0, 0, 0.6);
+}
+
+/* The blue banner that opens the operator workspace. */
+.ref-hero {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 50%, #2563eb 100%);
+}
+
+.dark .ref-hero {
+  background: linear-gradient(135deg, #14243d 0%, #1b3570 50%, #1d4ed8 100%);
+}
