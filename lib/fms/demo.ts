@@ -105,6 +105,33 @@ const nextPid = (records: { pid: string }[], location: string, when: string) => 
   return `${prefix}${String(highest + 1).padStart(4, '0')}`;
 };
 
+/**
+ * FMS ID, short but fully readable.
+ *
+ *   Mumbai, October → PFMS-MO100001
+ *   Boisar, October → PFMS-BO100001
+ *
+ * `PFMS` marks the system, `M`/`B` the office, `O` the first letter of the month,
+ * `10` the month number, and the last four digits a running sequence, matching the
+ * backend exactly. The month number keeps January/June/July distinct even though
+ * they share a first letter, so the sequence can restart each month safely.
+ */
+const nextFmsId = (records: { id: string }[], location: string, when: string) => {
+  const office = String(location || '').toLowerCase() === 'boisar' ? 'B' : 'M';
+  const date = new Date(when);
+  const monthLetter = MONTH_NAMES[date.getMonth()].slice(0, 1);
+  const monthNumber = String(date.getMonth() + 1).padStart(2, '0');
+  const prefix = `PFMS-${office}${monthLetter}${monthNumber}`;
+
+  const highest = records.reduce((max, record) => {
+    if (!String(record.id ?? '').startsWith(prefix)) return max;
+    const sequence = Number(String(record.id).slice(prefix.length));
+    return Number.isFinite(sequence) && sequence > max ? sequence : max;
+  }, 0);
+
+  return `${prefix}${String(highest + 1).padStart(4, '0')}`;
+};
+
 const permission = (step: number, level: 'EDIT' | 'READ'): StepPermission => ({
   step_number: step,
   access_level: level,
@@ -211,6 +238,8 @@ const applyUnlocks = (record: DemoRecord): WorkflowStep[] => {
 };
 
 const makeRecord = (config: {
+  /** FMS ID, assigned by the caller so a batch numbers sequentially. */
+  fmsId?: string;
   /** Purchase ID; assigned by the caller so a batch numbers sequentially. */
   pid?: string;
   company: {
@@ -237,7 +266,7 @@ const makeRecord = (config: {
   receipts?: ReceiptPart[];
   payouts?: PayoutRecord[];
 }): DemoRecord => {
-  const id = uid('FMS');
+  const id = config.fmsId || nextFmsId([], config.location, config.submittedAt);
   const record: DemoRecord = {
     record: {
       id,
@@ -615,13 +644,17 @@ export const demoRequest = async <T,>(
       const submittedAt = new Date().toISOString();
       const now = submittedAt;
 
-      // Purchase IDs are handed out in order, so a batch of companies gets
-      // distinct numbers instead of all reading the same sheet state.
-      const issued: { pid: string }[] = store.records.map((entry) => ({ pid: entry.record.pid ?? '' }));
+      // Both IDs are handed out in order, so a batch of companies gets distinct
+      // numbers instead of all reading the same store state.
+      const issuedPid: { pid: string }[] = store.records.map((entry) => ({ pid: entry.record.pid ?? '' }));
+      const issuedFms: { id: string }[] = store.records.map((entry) => ({ id: entry.record.id }));
       const created: DemoRecord[] = draft.companies.map((company) => {
-        const pid = nextPid(issued, draft.location, submittedAt);
-        issued.push({ pid });
+        const pid = nextPid(issuedPid, draft.location, submittedAt);
+        const fmsId = nextFmsId(issuedFms, draft.location, submittedAt);
+        issuedPid.push({ pid });
+        issuedFms.push({ id: fmsId });
         return makeRecord({
+          fmsId,
           pid,
           company: {
             company_name: company.company_name,
@@ -764,6 +797,14 @@ export const demoRequest = async <T,>(
           } else {
             step.status = 'In Progress';
             step.delay_display = delayLabel(step.planned_at, null);
+
+            // The balance stays open here as part 2, so step 3 has to be able to
+            // run again for it — otherwise the later quantity could never be split.
+            entry.steps.forEach((candidate) => {
+              if (candidate.step_number === 3 && candidate.status === 'Completed') {
+                candidate.status = 'In Progress';
+              }
+            });
           }
           break;
         }
@@ -780,19 +821,38 @@ export const demoRequest = async <T,>(
               note: line.note ?? '',
             }));
           if (!allocations.length) throw new Error('Enter a quantity for stock or direct to client.');
-          entry.allocations = allocations;
+
+          // A later receipt part is split on its own run, so earlier allocations
+          // are added to rather than replaced.
+          allocations.forEach((line) => {
+            const existing = entry.allocations.find(
+              (current) => current.item_name === line.item_name && current.route === line.route,
+            );
+            if (existing) existing.quantity += line.quantity;
+            else entry.allocations.push(line);
+          });
+
           step.status = 'Completed';
           step.actual_completed_at = now;
           step.completed_by = me.name;
           step.part_count += 1;
           step.remark = body.remark ?? '';
 
-          const route = routeStateOf(allocations);
+          const route = routeStateOf(entry.allocations);
           if (!route.hasStock) {
             entry.steps.forEach((candidate) => {
               if (candidate.step_number >= 4 && candidate.step_number <= 6) {
                 candidate.status = 'Skipped';
                 candidate.remark = 'All material went direct to the client.';
+              }
+            });
+          } else {
+            // Stock arrived later, so routes skipped by the first split come back.
+            entry.steps.forEach((candidate) => {
+              if (candidate.step_number >= 4 && candidate.step_number <= 6 && candidate.status === 'Skipped') {
+                candidate.status = 'Locked';
+                candidate.remark = '';
+                candidate.actual_completed_at = null;
               }
             });
           }
