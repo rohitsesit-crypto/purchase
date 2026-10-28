@@ -396,7 +396,12 @@ export const isStepUnlocked = (stepNumber: number, steps: WorkflowStep[], route:
     const receipt = byNumber(2);
     return done(2) || Boolean(receipt && receipt.part_count > 0);
   }
-  if (stepNumber === 7) return done(3) || done(6);
+  if (stepNumber === 7) {
+    // A later receipt part can reopen step 3; payouts must stay reachable once the
+    // split has happened, so a part count also counts as "decided".
+    const split = byNumber(3);
+    return done(3) || done(6) || Boolean(split && split.part_count > 0);
+  }
   if (stepNumber === 4) return done(3);
   if (stepNumber === 5) return done(4);
   if (stepNumber === 6) return done(5);
@@ -478,4 +483,19 @@ export const receivedStatusOf = (ordered: number, received: number): 'Pending' |
   return 'Received';
 };
 
-export const FORM_FILLED_BY = ['Rajesh Sankhe', 'Vibhavari Shinde', 'Mahendra Singh', 'Snehal'];
+/**
+ * Quantity already sent to a route, keyed by item name.
+ *
+ * Step 3 appends to the stored allocations rather than replacing them, so a later
+ * receipt part must only be offered what is still un-routed. Without this the
+ * same quantity would be split twice.
+ */
+export const allocatedByItem = (
+  lines: { item_name?: string | null; quantity?: number | null }[] | null | undefined,
+) =>
+  (Array.isArray(lines) ? lines : []).reduce<Record<string, number>>((totals, line) => {
+    const name = String(line?.item_name ?? '').trim();
+    if (!name) return totals;
+    totals[name] = (totals[name] ?? 0) + (Number(line?.quantity) || 0);
+    return totals;
+  }, {});
