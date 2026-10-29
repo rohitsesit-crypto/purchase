@@ -92,7 +92,7 @@ export const AppShell = ({
       <div className="flex items-center gap-2.5 px-4 py-4">
         <BrandMark size={28} />
         <div className="min-w-0">
-          <p className="truncate text-[12.5px] font-semibold text-white">Saraswat O2D</p>
+          <p className="truncate text-[12.5px] font-semibold text-white">Trading Purchase FMS</p>
           <p className="mono truncate text-[9.5px] uppercase tracking-[0.12em] text-white/40">Control room</p>
         </div>
       </div>
