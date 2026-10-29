@@ -25,15 +25,25 @@ const NAV: { key: ShellTab; href: string; label: string; Icon: typeof Users }[] 
   { key: 'holidays', href: '/admin?tab=holidays', label: 'Holiday calendar', Icon: CalendarOff },
 ];
 
+
+import Image from "next/image";
+
 export const BrandMark = ({ size = 26 }: { size?: number }) => (
   <span
-    className="mono inline-flex items-center justify-center rounded-[6px] bg-[var(--petrol)] font-semibold text-white"
-    style={{ width: size, height: size, fontSize: Math.round(size * 0.5) }}
+    className="inline-flex items-center justify-center overflow-hidden rounded-[6px]"
+    style={{ width: size, height: size }}
     aria-hidden="true"
   >
-    S
+    <Image
+      src="/logo.png"
+      alt="Logo"
+      width={size}
+      height={size}
+      className="h-full w-full object-contain"
+    />
   </span>
 );
+
 
 const ThemeToggle = () => {
   const [dark, setDark] = useState(false);
