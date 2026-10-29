@@ -155,7 +155,7 @@ export const AppShell = ({
             <BrandMark size={24} />
           </Link>
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-semibold text-[var(--ink)]">Flowchart Monitoring System</p>
+            <p className="truncate text-[13px] font-semibold text-[var(--ink)]">Purchase FMS</p>
             <p className="mono truncate text-[10px] uppercase tracking-[0.1em] text-[var(--muted)]">
               Saraswat Engineering Services
             </p>
