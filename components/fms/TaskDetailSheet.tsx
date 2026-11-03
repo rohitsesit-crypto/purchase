@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Paperclip, Pencil } from 'lucide-react';
-import { InfoRow, Meter, Micro, Sheet, StepStamp, StatusTag } from './ui';
+import { InfoRow, Meter, Micro, FmsIdLabel, Sheet, StepStamp, StatusTag } from './ui';
 import { fmsApi } from '@/lib/api';
 import { formatDate, formatDateTime, money, num, errorMessage } from '@/lib/format';
 import {
@@ -73,7 +73,7 @@ export const FmsDetailSheet = ({
     <Sheet
       open={open}
       onClose={onClose}
-      eyebrow={state ? `FMS ${state.record.pid || state.record.id}` : 'Loading'}
+      eyebrow={state ? `FMS ${state.record.id}` : 'Loading'}
       title={state?.record.company_name ?? 'FMS record'}
       subtitle={
         state
@@ -94,6 +94,13 @@ export const FmsDetailSheet = ({
       {state && (
         <div className="space-y-4">
           <div className="card px-3 py-1">
+            <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] py-1.5">
+              <span className="micro">FMS number</span>
+              <FmsIdLabel id={state.record.id} />
+              {state.record.pid && (
+                <span className="mono text-[10px] text-[var(--faint)]">· {state.record.pid}</span>
+              )}
+            </div>
             <div className="grid gap-x-6 sm:grid-cols-2">
               <div>
                 <InfoRow label="Company" value={state.record.company_name} />
