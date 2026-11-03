@@ -412,15 +412,20 @@ const sameScope = (user: AdminUser, location: string) => {
 const skipDays = (store: DemoStore) => nonWorkingDaysOf(store.holidays, store.sundays);
 
 /**
- * The people registered in this store, for the "Form filled by" list.
+ * The people allowed to raise the primary form, for the "Form filled by" list.
  *
- * Nothing is hardcoded: adding or renaming an operator is enough, exactly like
- * the AppUsers sheet on the real backend.
+ * Only operators with form access and an active account appear, mirroring the
+ * AppUsers sheet on the real backend: the dropdown offers the people permitted
+ * to create an FMS, not the whole team.
  */
 const peopleNames = (store: DemoStore) => {
   const seen = new Set<string>();
   const names: string[] = [];
   store.users.forEach((user) => {
+    // The administrator keeps form access even if the flag was cleared, which is
+    // exactly what submitNewFms does on the real backend.
+    if (!user.can_fill_form && !user.is_admin) return;
+    if (user.status === 'Disabled') return;
     const name = String(user.name ?? '').trim();
     if (!name) return;
     const key = name.toLowerCase();
