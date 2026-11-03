@@ -221,7 +221,14 @@ export const fmsApi = {
   formFilledBy: async () => (await request<UserTaskBoard>('listTasks')).form_filled_by ?? [],
 
   submitNewFms: (draft: FmsDraft, requestKey: string) =>
-    request<{ ok: boolean; fms_ids: string[] }>('submitNewFms', { ...draft, request_key: requestKey }),
+    request<{
+      ok: boolean;
+      fms_ids: string[];
+      /** One entry per record actually created, paired with its company. */
+      created?: { id: string; company_name: string }[];
+      /** Rows refused because an identical record already exists. */
+      skipped?: { company_name: string; fms_id: string }[];
+    }>('submitNewFms', { ...draft, request_key: requestKey }),
 
   submitStep: async (payload: SubmitStepPayload) =>
     normalizeState(await request<FmsEntryState>('submitStep', payload)),
