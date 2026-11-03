@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronRight } from 'lucide-react';
-import { EmptyState, Micro, StatusTag } from './ui';
+import { EmptyState, FmsIdLabel, Micro, StatusTag } from './ui';
 import { formatDate, money } from '@/lib/format';
 import { dateKey, isOverdueKey } from '@/lib/fms/workflow';
 import type { FmsSummary } from '@/lib/fms/types';
@@ -59,13 +59,15 @@ export const RecordBox = ({
             </span>
             <StatusTag label={record.overall_status} />
           </div>
-          <p className="mono mt-0.5 truncate text-[10px] text-[var(--muted)]">
-            {record.pid ? `${record.pid} · ` : ''}
-            {record.id} · PO {record.po_number || '—'}
-          </p>
           <p className="mt-0.5 truncate text-[11.5px] text-[var(--ink-2)]">
             Name of client: {record.supplier || '—'}
           </p>
+          {/* The FMS number is the reference the desk quotes, so it gets its own label. */}
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <FmsIdLabel id={record.id} size="sm" />
+            <span className="mono text-[10px] text-[var(--muted)]">PO {record.po_number || '—'}</span>
+            {record.pid && <span className="mono text-[10px] text-[var(--faint)]">{record.pid}</span>}
+          </div>
         </div>
 
         <button
