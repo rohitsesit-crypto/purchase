@@ -17,7 +17,7 @@ import { MyAccessBar } from '@/components/fms/MyAccessBar';
 import { PrimaryFormSheet } from '@/components/fms/PrimaryFormSheet';
 import { StepSubmitSheet } from '@/components/fms/StepSubmitSheet';
 import { FmsDetailSheet } from '@/components/fms/TaskDetailSheet';
-import { ErrorStrip, Spinner, ToastViewport, type ToastTone } from '@/components/fms/ui';
+import { ErrorStrip, FmsIdLabel, Spinner, ToastViewport, type ToastTone } from '@/components/fms/ui';
 import { adminApi, captureAccessFromUrl, fmsApi, getSessionEmail, setSessionEmail } from '@/lib/api';
 import { formatDate, errorMessage, money } from '@/lib/format';
 import {
@@ -599,9 +599,12 @@ export default function UserPage() {
                                 >
                                   {task.company_name}
                                 </button>
-                                <p className="mono truncate text-[10px] text-[var(--muted)]">
-                                  {task.fms_id} · PO {task.po_number || '—'}
-                                </p>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                                  <FmsIdLabel id={task.fms_id} size="sm" />
+                                  <span className="mono text-[10px] text-[var(--muted)]">
+                                    PO {task.po_number || '—'}
+                                  </span>
+                                </div>
                               </div>
                               <span className="mono shrink-0 rounded-[4px] bg-[var(--sunken)] px-1 py-[1px] text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--muted)]">
                                 {task.location}
