@@ -478,3 +478,14 @@ export const receivedStatusOf = (ordered: number, received: number): 'Pending' |
   return 'Received';
 };
 
+/**
+ * Names shown in a "Form filled by" list.
+ *
+ * Superseded: the real list now comes from the backend (`form_filled_by` in
+ * `listTasks` / `getAdminData`), filtered to people with `CanFillForm` access.
+ * The constant stays exported so an older build still compiles against this
+ * module; nothing in the current app reads it, and it must never be used as a
+ * source of names.
+ */
+export const FORM_FILLED_BY: string[] = [];
+
