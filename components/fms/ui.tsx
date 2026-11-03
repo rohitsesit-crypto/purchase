@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { AlertTriangle, Check, Inbox, X } from 'lucide-react';
 import { statusTone } from '@/lib/fms/workflow';
+import { fmsIdPeriodLabel, isFmsId } from '@/lib/fms/ids';
 
 export type Tone = 'petrol' | 'steel' | 'amber' | 'rust' | 'forest' | 'quiet';
 
@@ -56,6 +57,53 @@ export const StepStamp = ({
 export const StatusTag = ({ label, tone }: { label: string; tone?: Tone }) => (
   <span className={`tag tag-${tone ?? statusTone(label)}`}>{label}</span>
 );
+
+/**
+ * The FMS number, printed as a label so the reference is never guessed at.
+ *
+ * `PFMS-261100001` is what the desk writes on a bill, quotes on a call and
+ * searches the register for, so it is shown as a labelled code rather than
+ * buried in a line of grey metadata. A row created by an older build still
+ * carries its original id, which is displayed just as plainly.
+ */
+export const FmsIdLabel = ({
+  id,
+  size = 'md',
+  className = '',
+}: {
+  id?: string | null;
+  size?: 'sm' | 'md';
+  className?: string;
+}) => {
+  const value = String(id ?? '').trim();
+  const period = fmsIdPeriodLabel(value);
+  const known = isFmsId(value);
+
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1 rounded-[4px] border px-1.5 py-[1px] ${
+        known
+          ? 'border-[var(--petrol)]/40 bg-[var(--petrol-tint)] text-[var(--petrol)]'
+          : 'border-[var(--line-strong)] bg-[var(--sunken)] text-[var(--muted)]'
+      } ${className}`}
+      title={period ? `FMS number issued ${period}` : 'FMS number'}
+    >
+      <span
+        className={`mono shrink-0 font-semibold uppercase tracking-[0.1em] opacity-75 ${
+          size === 'sm' ? 'text-[8px]' : 'text-[8.5px]'
+        }`}
+      >
+        FMS ID
+      </span>
+      <span
+        className={`mono min-w-0 truncate font-semibold ${size === 'sm' ? 'text-[9.5px]' : 'text-[10.5px]'}`}
+      >
+        {value || '—'}
+      </span>
+      {period && size === 'md' && <span className="mono shrink-0 text-[9px] opacity-60">· {period}</span>}
+    </span>
+  );
+};
 
 export const Micro = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
   <span className={`micro ${className}`}>{children}</span>
