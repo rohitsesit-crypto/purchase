@@ -1,5 +1,6 @@
 import type { DraftItem, SheetCompanyRow } from './fms/types';
 import { parseMoney, unitMultiplierIn } from './format';
+import { rowSignatureOf } from './fms/ids';
 
 /**
  * Column contract for the supplier workbook.
@@ -126,10 +127,27 @@ export const toNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+/**
+ * A row dropped because an earlier row carried exactly the same details.
+ *
+ * Reported back to the operator with both row numbers, so a genuinely repeated
+ * entry can be checked in the workbook instead of silently disappearing.
+ */
+export interface DuplicateRow {
+  /** 1-based row number in the sheet, as Excel numbers it. */
+  row: number;
+  company_name: string;
+  /** 1-based row these details were first read from. */
+  first_row: number;
+}
+
 export interface ParsedSheet {
   companies: SheetCompanyRow[];
+  /** Rows skipped as exact repeats of an earlier row. */
+  duplicates: DuplicateRow[];
   /** Canonical names of fields that could not be located or inferred. */
   missingColumns: string[];
+  /** Data rows read, including the repeats that were skipped. */
   totalRows: number;
   /** Zero-based index of the row that was read as the header, or -1 if none. */
   headerRow: number;
@@ -370,7 +388,15 @@ export const parseCompanySheet = (
       ];
 
   const width = matrix.reduce((max, line) => Math.max(max, Array.isArray(line) ? line.length : 0), 0);
-  if (!width) return { companies: [], missingColumns: Object.values(REQUIRED_COLUMNS), totalRows: 0, headerRow: -1 };
+  if (!width) {
+    return {
+      companies: [],
+      duplicates: [],
+      missingColumns: Object.values(REQUIRED_COLUMNS),
+      totalRows: 0,
+      headerRow: -1,
+    };
+  }
 
   const header = findHeader(matrix, width);
   const headerRow = header ? header.row : -1;
@@ -420,7 +446,18 @@ export const parseCompanySheet = (
       : '';
   const grossUnit = unitMultiplierIn(grossLabel);
 
-  const byCompany = new Map<string, SheetCompanyRow>();
+  /**
+   * Rows are identified by **every captured detail**, never by the company name.
+   *
+   * A client can raise several purchase orders in one workbook, and two offices
+   * can buy from the same supplier, so keying on the name alone used to collapse
+   * those distinct entries into one. Only a row that repeats all of company,
+   * supplier, PO reference, pay terms and gross total is a duplicate.
+   */
+  const bySignature = new Map<string, SheetCompanyRow>();
+  /** Signature → the sheet row it was first read from, for the duplicate report. */
+  const firstRowOf = new Map<string, number>();
+  const duplicates: DuplicateRow[] = [];
   let seen = 0;
 
   for (let row = dataStart; row < matrix.length; row += 1) {
@@ -432,8 +469,6 @@ export const parseCompanySheet = (
     if (strictHeadingCount(matrix, row, width) >= 2) continue;
 
     seen += 1;
-    const key = company.toLowerCase();
-    const existing = byCompany.get(key);
     const next: SheetCompanyRow = {
       company_name: company,
       supplier: text(valueOf(row, 'supplier')),
@@ -444,24 +479,22 @@ export const parseCompanySheet = (
       gross_total: parseMoney(moneyCellOf(row), grossUnit),
     };
 
-    if (!existing) {
-      byCompany.set(key, next);
+    const signature = rowSignatureOf(next);
+    const firstRow = firstRowOf.get(signature);
+    if (firstRow === undefined) {
+      firstRowOf.set(signature, row + 1);
+      bySignature.set(signature, next);
       continue;
     }
-    // The same company can be split across rows; keep the first value that exists.
-    byCompany.set(key, {
-      company_name: existing.company_name,
-      supplier: existing.supplier || next.supplier,
-      po_number: existing.po_number || next.po_number,
-      pay_terms: existing.pay_terms || next.pay_terms,
-      gross_total: existing.gross_total || next.gross_total,
-    });
+
+    duplicates.push({ row: row + 1, company_name: company, first_row: firstRow });
   }
 
   const missingColumns = FIELDS.filter((field) => !columns.has(field)).map((field) => REQUIRED_COLUMNS[field]);
 
   return {
-    companies: Array.from(byCompany.values()),
+    companies: Array.from(bySignature.values()),
+    duplicates,
     missingColumns,
     totalRows: seen,
     headerRow,
