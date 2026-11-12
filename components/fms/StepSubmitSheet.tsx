@@ -567,8 +567,15 @@ export const StepSubmitSheet = ({
       {stepNumber === 4 && (
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="PO number">
-              <input className="input" value={state.record.po_number} readOnly />
+            {/* Taken from the FMS the GRN belongs to, so it is never typed here. */}
+            <Field label="PO number" hint="locked · from the FMS">
+              <input
+                className="input input-locked"
+                value={state.record.po_number || '—'}
+                readOnly
+                aria-readonly="true"
+                tabIndex={-1}
+              />
             </Field>
             <Field label="GRN number" required htmlFor="grn-number">
               <input
