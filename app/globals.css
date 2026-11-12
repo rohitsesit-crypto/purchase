@@ -220,6 +220,16 @@ body {
   color: var(--muted);
 }
 
+/* A value the user may read but never change — e.g. the PO number on a GRN. */
+.input-locked,
+.input-locked:focus {
+  background: var(--sunken);
+  border-color: var(--line);
+  color: var(--ink-2);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 .input-invalid {
   border-color: var(--rust);
 }
