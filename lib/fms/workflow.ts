@@ -435,13 +435,80 @@ export const stepStatusTone = (
 
 /* ------------------------------------------------------------------ money */
 
-export const paidTotalOf = (payouts: PayoutRecord[]) =>
-  payouts.reduce((sum, payout) => sum + (Number(payout.amount) || 0), 0);
-
-export const pendingAmountOf = (grossTotal: number, payouts: PayoutRecord[]) => {
-  const remaining = (Number(grossTotal) || 0) - paidTotalOf(payouts);
-  return remaining > 0.009 ? Math.round(remaining * 100) / 100 : 0;
+/**
+ * Reads money from anything the sheet can hand back.
+ *
+ * A payout or a gross total reaches the app as a number, a numeric string, or a
+ * formatted cell such as `"1,00,000.00"` / `"₹5000"`. Stripping the formatting
+ * before parsing means a hand-edited cell still settles the step instead of
+ * silently becoming zero.
+ */
+export const amountOf = (value: unknown): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value ?? '').replace(/[^0-9.-]/g, '');
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
 };
+
+export const roundMoney = (value: unknown) => Math.round(amountOf(value) * 100) / 100;
+
+export const paidTotalOf = (payouts: PayoutRecord[] | null | undefined) =>
+  roundMoney(
+    (Array.isArray(payouts) ? payouts : []).reduce((sum, payout) => sum + amountOf(payout?.amount), 0),
+  );
+
+/**
+ * Money still owed on the purchase.
+ *
+ * Drift under half a paisa is not a real balance — it is the residue of rounding
+ * each payout to two decimals — so it reports zero and the step can close.
+ */
+export const pendingAmountOf = (grossTotal: unknown, payouts: PayoutRecord[] | null | undefined) => {
+  const remaining = roundMoney(amountOf(grossTotal) - paidTotalOf(payouts));
+  return remaining > 0.005 ? remaining : 0;
+};
+
+/**
+ * True when the payouts cover the gross total.
+ *
+ * A record with no gross total is never treated as settled: that is missing
+ * data, not a paid bill, and closing step 7 on it would hide the gap.
+ */
+export const isSettled = (grossTotal: unknown, payouts: PayoutRecord[] | null | undefined) =>
+  amountOf(grossTotal) > 0 && pendingAmountOf(grossTotal, payouts) === 0;
+
+/** The latest payout timestamp, used as step 7's actual time when it closes. */
+const lastPaidAt = (payouts: PayoutRecord[] | null | undefined) =>
+  (Array.isArray(payouts) ? payouts : []).reduce<string | null>((latest, payout) => {
+    const at = payout?.paid_at ?? null;
+    if (!at) return latest;
+    return !latest || at > latest ? at : latest;
+  }, null);
+
+/**
+ * Step 7 closes on money, not on the status last written down.
+ *
+ * The payout row and the step row can disagree — a sheet edited by hand, a
+ * payout saved by an older build, or a balance that cleared to the exact paisa.
+ * So whenever nothing is outstanding the step is shown Completed, with the last
+ * payment's time as its actual date; while money is owed it can never read
+ * Completed. Steps 1–6 are returned untouched.
+ */
+export const withSettledPayouts = (
+  steps: WorkflowStep[],
+  grossTotal: unknown,
+  payouts: PayoutRecord[] | null | undefined,
+): WorkflowStep[] =>
+  (Array.isArray(steps) ? steps : []).map((step) => {
+    if (step.step_number !== 7) return step;
+    if (!isSettled(grossTotal, payouts) || step.status === 'Completed') return step;
+    return {
+      ...step,
+      status: 'Completed',
+      actual_completed_at: step.actual_completed_at ?? lastPaidAt(payouts),
+      part_count: Math.max(step.part_count, Array.isArray(payouts) ? payouts.length : 0),
+    };
+  });
 
 /* ------------------------------------------------------------- quantities */
 
@@ -478,14 +545,4 @@ export const receivedStatusOf = (ordered: number, received: number): 'Pending' |
   return 'Received';
 };
 
-/**
- * Names shown in a "Form filled by" list.
- *
- * Superseded: the real list now comes from the backend (`form_filled_by` in
- * `listTasks` / `getAdminData`), filtered to people with `CanFillForm` access.
- * The constant stays exported so an older build still compiles against this
- * module; nothing in the current app reads it, and it must never be used as a
- * source of names.
- */
-export const FORM_FILLED_BY: string[] = [];
-
+export const FORM_FILLED_BY = ['Rajesh Sankhe', 'Vibhavari Shinde', 'Mahendra Singh', 'Snehal'];
