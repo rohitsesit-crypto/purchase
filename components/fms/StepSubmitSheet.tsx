@@ -582,24 +582,47 @@ export const StepSubmitSheet = ({
           </div>
 
           <div>
-            <Micro>Received quantity (editable)</Micro>
-            <ul className="mt-1.5 space-y-1.5">
-              {state.requirements.map((item) => (
-                <li key={item.item_name} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--ink)]">{item.item_name}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    className="input w-[104px] text-right"
-                    value={grnLines[item.item_name] ?? ''}
-                    onChange={(event) =>
-                      setGrnLines((current) => ({ ...current, [item.item_name]: event.target.value }))
-                    }
-                  />
-                  <span className="mono w-[44px] shrink-0 text-[10.5px] text-[var(--muted)]">{item.unit}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="flex items-center justify-between">
+              <Micro>Received quantity (editable)</Micro>
+              <Micro>Ordered {num(totalQty)}</Micro>
+            </div>
+            <div className="mt-1.5 overflow-x-auto">
+              <table className="w-full min-w-[520px] text-[12px]">
+                <thead>
+                  <tr className="border-b border-[var(--line)] text-left text-[10.5px] uppercase tracking-[0.06em] text-[var(--muted)]">
+                    <th className="py-1.5 font-semibold">Item</th>
+                    <th className="py-1.5 text-right font-semibold">Quantity</th>
+                    <th className="py-1.5 pl-3 text-left font-semibold">Unit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.requirements.map((item) => (
+                    <tr key={item.item_name} className="border-b border-[var(--line)]/60">
+                      {/* Name first, then the quantity being entered for it. */}
+                      <td className="py-1.5 pr-3 text-[var(--ink)]">
+                        <span className="block">{item.item_name}</span>
+                        <span className="mono mt-0.5 block text-[10px] text-[var(--muted)]">
+                          ordered {num(item.quantity)} {item.unit}
+                        </span>
+                      </td>
+                      <td className="py-1.5 text-right">
+                        <input
+                          type="number"
+                          min={0}
+                          aria-label={`Received quantity for ${item.item_name}`}
+                          className="input w-[104px] text-right"
+                          value={grnLines[item.item_name] ?? ''}
+                          onChange={(event) =>
+                            setGrnLines((current) => ({ ...current, [item.item_name]: event.target.value }))
+                          }
+                        />
+                      </td>
+                      <td className="mono py-1.5 pl-3 text-[10.5px] text-[var(--muted)]">{item.unit}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <Field label="Remark" hint="optional">
