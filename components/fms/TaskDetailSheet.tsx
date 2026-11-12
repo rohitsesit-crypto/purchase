@@ -316,11 +316,14 @@ export const FmsDetailSheet = ({
                       )}
 
                       {step.step_number === 4 && state.grn && (
-                        <p className="mt-1 text-[11px] text-[var(--ink-2)]">
-                          GRN <span className="mono">{state.grn.grn_number}</span> ·{' '}
-                          {state.grn.lines.map((line) => `${num(line.quantity)} ${line.unit}`).join(', ')}
-                        </p>
-                      )}
+  <p className="mt-1 text-[11px] text-[var(--ink-2)]">
+    GRN <span className="mono">{state.grn.grn_number}</span> ·{' '}
+    {state.grn.lines
+      .map((line) => `<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi><mi>i</mi><mi>n</mi><mi>e</mi><mi mathvariant="normal">.</mi><mi>i</mi><mi>t</mi><mi>e</mi><msub><mi>m</mi><mi>n</mi></msub><mi>a</mi><mi>m</mi><mi>e</mi></mrow><annotation encoding="application/x-tex">{line.item_name} </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0197em;">l</span><span class="mord mathnormal">in</span><span class="mord mathnormal">e</span><span class="mord">.</span><span class="mord mathnormal">i</span><span class="mord mathnormal">t</span><span class="mord mathnormal">e</span><span class="mord"><span class="mord mathnormal">m</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">am</span><span class="mord mathnormal">e</span></span></span></span></span>{num(line.quantity)} ${line.unit}`)
+      .join(', ')}
+  </p>
+)}
+
 
                       {step.step_number === 5 && state.ims && (
                         <p className="mt-1 text-[11px] text-[var(--ink-2)]">
