@@ -12,6 +12,7 @@ import {
   errorMessage,
 } from '@/lib/format';
 import {
+  amountOf,
   delayLabel,
   paidTotalOf,
   pendingAmountOf,
@@ -308,9 +309,11 @@ export const StepSubmitSheet = ({
         };
         next = await fmsApi.submitStep(payload);
       } else {
-        const value = Number(amount) || 0;
+        // Parsed and rounded to two decimals so "1,50,000.00" typed or pasted
+        // still settles the last paisa instead of falling over to zero.
+        const value = Math.round(amountOf(amount) * 100) / 100;
         if (value <= 0) throw new Error('Enter a payout amount greater than zero.');
-        if (value - pending > 0.009) throw new Error(`Only ${money(pending)} is still outstanding.`);
+        if (value - pending > 0.005) throw new Error(`Only ${money(pending)} is still outstanding.`);
         const payload: PayoutSubmission = { fms_id: state.record.id, step_number: 7, amount: value, remark };
         next = await fmsApi.submitStep(payload);
       }
