@@ -24,8 +24,10 @@ import type {
 } from './types';
 import {
   STEP_DEFS,
+  amountOf,
   canEditStep,
   delayLabel,
+  isSettled,
   isStepUnlocked,
   nonWorkingDaysOf,
   paidTotalOf,
@@ -34,8 +36,8 @@ import {
   routeStateOf,
   totalQuantityOf,
   visibleStepsOf,
+  withSettledPayouts,
 } from './workflow';
-import { nextFmsId, rowSignatureOf } from './ids';
 
 /**
  * Local demo backend.
@@ -212,8 +214,6 @@ const applyUnlocks = (record: DemoRecord): WorkflowStep[] => {
 };
 
 const makeRecord = (config: {
-  /** FMS number, `PFMS-261100001`; assigned by the caller so a batch counts up. */
-  id?: string;
   /** Purchase ID; assigned by the caller so a batch numbers sequentially. */
   pid?: string;
   company: {
@@ -240,7 +240,7 @@ const makeRecord = (config: {
   receipts?: ReceiptPart[];
   payouts?: PayoutRecord[];
 }): DemoRecord => {
-  const id = config.id ?? uid('FMS');
+  const id = uid('FMS');
   const record: DemoRecord = {
     record: {
       id,
@@ -412,20 +412,15 @@ const sameScope = (user: AdminUser, location: string) => {
 const skipDays = (store: DemoStore) => nonWorkingDaysOf(store.holidays, store.sundays);
 
 /**
- * The people allowed to raise the primary form, for the "Form filled by" list.
+ * The people registered in this store, for the "Form filled by" list.
  *
- * Only operators with form access and an active account appear, mirroring the
- * AppUsers sheet on the real backend: the dropdown offers the people permitted
- * to create an FMS, not the whole team.
+ * Nothing is hardcoded: adding or renaming an operator is enough, exactly like
+ * the AppUsers sheet on the real backend.
  */
 const peopleNames = (store: DemoStore) => {
   const seen = new Set<string>();
   const names: string[] = [];
   store.users.forEach((user) => {
-    // The administrator keeps form access even if the flag was cleared, which is
-    // exactly what submitNewFms does on the real backend.
-    if (!user.can_fill_form && !user.is_admin) return;
-    if (user.status === 'Disabled') return;
     const name = String(user.name ?? '').trim();
     if (!name) return;
     const key = name.toLowerCase();
@@ -439,17 +434,23 @@ const peopleNames = (store: DemoStore) => {
 /** Arrays a demo record may be missing when it was saved by an older build. */
 const asList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
 
+/** Steps as they should be read: step 7 closes on money, then access is attached. */
+const readableSteps = (entry: DemoRecord, me: AdminUser): WorkflowStep[] =>
+  withSettledPayouts(asList<DemoRecord['steps'][number]>(entry.steps), entry.record.gross_total, entry.payouts).map(
+    (step) => ({
+      ...step,
+      access_level: canEditStep(me, step.step_number)
+        ? 'EDIT'
+        : visibleStepsOf(me).includes(step.step_number)
+          ? 'READ'
+          : 'NONE',
+    }),
+  );
+
 const toState = (entry: DemoRecord, me: AdminUser): FmsEntryState => ({
   record: entry.record,
   requirements: asList<DemoRecord['requirements'][number]>(entry.requirements),
-  steps: asList<DemoRecord['steps'][number]>(entry.steps).map((step) => ({
-    ...step,
-    access_level: canEditStep(me, step.step_number)
-      ? 'EDIT'
-      : visibleStepsOf(me).includes(step.step_number)
-        ? 'READ'
-        : 'NONE',
-  })),
+  steps: readableSteps(entry, me),
   // Receipts saved before `lines` existed must not break the operator screen.
   receipts: asList<ReceiptPart>(entry.receipts).map((part) => ({
     ...part,
@@ -466,8 +467,16 @@ const toState = (entry: DemoRecord, me: AdminUser): FmsEntryState => ({
 });
 
 const toSummary = (entry: DemoRecord): FmsSummary => {
+  // A settled payout closes step 7 here too, so the register never shows an
+  // outstanding balance on a record that is fully paid.
+  const steps = withSettledPayouts(
+    asList<DemoRecord['steps'][number]>(entry.steps),
+    entry.record.gross_total,
+    entry.payouts,
+  );
   const active =
-    entry.steps.find((step) => step.status !== 'Completed' && step.status !== 'Skipped') ?? entry.steps[entry.steps.length - 1];
+    steps.find((step) => step.status !== 'Completed' && step.status !== 'Skipped') ??
+    steps[steps.length - 1];
   return {
     id: entry.record.id,
     pid: entry.record.pid ?? '',
@@ -497,12 +506,19 @@ const findEntry = (store: DemoStore, id: string) => {
 };
 
 const finishRecord = (entry: DemoRecord) => {
-  entry.record.is_completed = entry.steps.every(
+  // Fall back to the money view before judging the record: step 7 must be
+  // Completed when nothing is owed, even if the stored step still said so.
+  const steps = withSettledPayouts(
+    asList<DemoRecord['steps'][number]>(entry.steps),
+    entry.record.gross_total,
+    entry.payouts,
+  );
+  entry.record.is_completed = steps.every(
     (step) => step.status === 'Completed' || step.status === 'Skipped',
   );
   entry.record.overall_status = entry.record.is_completed
     ? 'Completed'
-    : entry.steps.some((step) => step.actual_completed_at)
+    : steps.some((step) => step.actual_completed_at)
       ? 'In Progress'
       : 'Pending';
 };
@@ -549,8 +565,15 @@ export const demoRequest = async <T,>(
       const items: UserTask[] = [];
       store.records.forEach((entry) => {
         if (!sameScope(me, entry.record.location)) return;
+        // Settled payouts close step 7 before the task list is built, so a paid
+        // record never offers "Record payout" with nothing left to pay.
+        const settledSteps = withSettledPayouts(
+          asList<DemoRecord['steps'][number]>(entry.steps),
+          entry.record.gross_total,
+          entry.payouts,
+        );
         visibleStepsOf(me).forEach((number) => {
-          const step = entry.steps.find((candidate) => candidate.step_number === number);
+          const step = settledSteps.find((candidate) => candidate.step_number === number);
           if (!step) return;
           items.push({
             fms_id: entry.record.id,
@@ -619,55 +642,17 @@ export const demoRequest = async <T,>(
       if (missingItems.length) {
         throw new Error(`Add items for ${missingItems.map((company) => company.company_name).join(', ')}.`);
       }
-
-      /**
-       * A record is refused only when every captured detail already exists.
-       *
-       * Same company name with a different PO number, supplier, pay terms or
-       * total is a separate purchase and gets its own FMS number.
-       */
-      const existingSignatures = new Map<string, string>();
-      store.records.forEach((entry) => {
-        existingSignatures.set(
-          rowSignatureOf({
-            company_name: entry.record.company_name,
-            supplier: entry.record.supplier,
-            po_number: entry.record.po_number,
-            pay_terms: entry.record.pay_terms,
-            gross_total: entry.record.gross_total,
-          }),
-          entry.record.id,
-        );
-      });
-      const skipped: { company_name: string; fms_id: string }[] = [];
-      const accepted = draft.companies.filter((company) => {
-        const signature = rowSignatureOf(company);
-        const duplicateOf = existingSignatures.get(signature);
-        if (!duplicateOf) return true;
-        skipped.push({ company_name: company.company_name, fms_id: duplicateOf });
-        return false;
-      });
-      if (!accepted.length) {
-        throw new Error(
-          `${draft.companies.length === 1 ? 'That entry already exists' : 'Every entry already exists'} in the register — nothing new was created.`,
-        );
-      }
       const skip = skipDays(store);
       const submittedAt = new Date().toISOString();
       const now = submittedAt;
 
-      // Purchase IDs and FMS numbers are handed out in order, so a batch of
-      // companies gets distinct values instead of all reading the same state.
+      // Purchase IDs are handed out in order, so a batch of companies gets
+      // distinct numbers instead of all reading the same sheet state.
       const issued: { pid: string }[] = store.records.map((entry) => ({ pid: entry.record.pid ?? '' }));
-      const issuedIds = store.records.map((entry) => entry.record.id);
-      const created: DemoRecord[] = accepted.map((company) => {
+      const created: DemoRecord[] = draft.companies.map((company) => {
         const pid = nextPid(issued, draft.location, submittedAt);
         issued.push({ pid });
-        // `PFMS-261100001` — one per record, restarting every month.
-        const id = nextFmsId(issuedIds, submittedAt);
-        issuedIds.push(id);
         return makeRecord({
-          id,
           pid,
           company: {
             company_name: company.company_name,
@@ -697,7 +682,7 @@ export const demoRequest = async <T,>(
 
       // A company seen before keeps its saved contact details.
       const clients = [...store.clients];
-      accepted.forEach((company) => {
+      draft.companies.forEach((company) => {
         const index = clients.findIndex(
           (client) => client.company_name.toLowerCase() === company.company_name.toLowerCase(),
         );
@@ -713,12 +698,7 @@ export const demoRequest = async <T,>(
       });
 
       commit({ ...store, records: [...created, ...store.records], clients });
-      return {
-        ok: true,
-        fms_ids: created.map((entry) => entry.record.id),
-        created: created.map((entry) => ({ id: entry.record.id, company_name: entry.record.company_name })),
-        skipped,
-      } as T;
+      return { ok: true, fms_ids: created.map((entry) => entry.record.id) } as T;
     }
 
     case 'submitStep': {
@@ -917,10 +897,12 @@ export const demoRequest = async <T,>(
 
         case 7: {
           const submission = payload as unknown as PayoutSubmission;
-          const amount = Number(submission.amount) || 0;
+          // Money arrives as a number or a formatted string; parse it once to
+          // two decimals so the balance can actually reach zero.
+          const amount = Math.round(amountOf(submission.amount) * 100) / 100;
           if (amount <= 0) throw new Error('Enter a payout amount greater than zero.');
           const pending = pendingAmountOf(entry.record.gross_total, entry.payouts);
-          if (amount - pending > 0.009) {
+          if (amount - pending > 0.005) {
             throw new Error(`Only ${pending.toFixed(2)} is still outstanding.`);
           }
           entry.payouts.push({
@@ -932,8 +914,8 @@ export const demoRequest = async <T,>(
           });
           step.part_count += 1;
           step.remark = body.remark ?? '';
-          const remaining = pendingAmountOf(entry.record.gross_total, entry.payouts);
-          if (remaining <= 0.009) {
+          // Settled means the payouts now cover the gross total to the paisa.
+          if (isSettled(entry.record.gross_total, entry.payouts)) {
             step.status = 'Completed';
             step.actual_completed_at = now;
             step.completed_by = me.name;
