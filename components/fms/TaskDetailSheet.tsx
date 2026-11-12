@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Paperclip, Pencil } from 'lucide-react';
-import { InfoRow, Meter, Micro, FmsIdLabel, Sheet, StepStamp, StatusTag } from './ui';
+import { InfoRow, Meter, Micro, Sheet, StepStamp, StatusTag } from './ui';
 import { fmsApi } from '@/lib/api';
 import { formatDate, formatDateTime, money, num, errorMessage } from '@/lib/format';
 import {
@@ -73,7 +73,7 @@ export const FmsDetailSheet = ({
     <Sheet
       open={open}
       onClose={onClose}
-      eyebrow={state ? `FMS ${state.record.id}` : 'Loading'}
+      eyebrow={state ? `FMS ${state.record.pid || state.record.id}` : 'Loading'}
       title={state?.record.company_name ?? 'FMS record'}
       subtitle={
         state
@@ -94,13 +94,6 @@ export const FmsDetailSheet = ({
       {state && (
         <div className="space-y-4">
           <div className="card px-3 py-1">
-            <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] py-1.5">
-              <span className="micro">FMS number</span>
-              <FmsIdLabel id={state.record.id} />
-              {state.record.pid && (
-                <span className="mono text-[10px] text-[var(--faint)]">· {state.record.pid}</span>
-              )}
-            </div>
             <div className="grid gap-x-6 sm:grid-cols-2">
               <div>
                 <InfoRow label="Company" value={state.record.company_name} />
@@ -275,21 +268,40 @@ export const FmsDetailSheet = ({
 
                       {step.step_number === 2 && state.receipts.length > 0 && (
                         <ul className="mt-1.5 space-y-1 border-t border-[var(--line)]/60 pt-1.5">
-                          {state.receipts.map((part) => (
-                            <li key={part.part_number} className="text-[11px] text-[var(--ink-2)]">
-                              <span className="mono text-[10px] text-[var(--muted)]">Part {part.part_number}</span>{' '}
-                              {formatDateTime(part.received_at)} —{' '}
-                              {(part.lines ?? [])
-                                .filter((line) => line.received > 0)
-                                .map((line) => `${line.item_name} ${num(line.received)} ${line.unit}`)
-                                .join(', ') || 'nothing received'}
-                              {(part.attachments ?? []).length > 0 && (
-                                <span className="mono ml-1 text-[10px] text-[var(--muted)]">
-                                  · {(part.attachments ?? []).length} file(s)
-                                </span>
-                              )}
-                            </li>
-                          ))}
+                          {state.receipts.map((part) => {
+                            const receivedLines = (part.lines ?? []).filter((line) => line.received > 0);
+                            return (
+                              <li key={part.part_number} className="text-[11px] text-[var(--ink-2)]">
+                                <span className="mono text-[10px] text-[var(--muted)]">
+                                  Part {part.part_number}
+                                </span>{' '}
+                                {formatDateTime(part.received_at)} —{' '}
+                                {receivedLines.length === 0 ? (
+                                  'nothing received'
+                                ) : (
+                                  // Name first, then the quantity, as separate JSX values.
+                                  <span className="inline-flex flex-wrap gap-x-2">
+                                    {receivedLines.map((line, index) => (
+                                      <span
+                                        key={line.item_name + '-' + index}
+                                        className="inline-flex items-baseline gap-1"
+                                      >
+                                        <span>{line.item_name}</span>
+                                        <span className="mono text-[var(--muted)]">
+                                          {num(line.received)} {line.unit}
+                                        </span>
+                                      </span>
+                                    ))}
+                                  </span>
+                                )}
+                                {(part.attachments ?? []).length > 0 && (
+                                  <span className="mono ml-1 text-[10px] text-[var(--muted)]">
+                                    · {(part.attachments ?? []).length} file(s)
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       )}
 
@@ -316,14 +328,29 @@ export const FmsDetailSheet = ({
                       )}
 
                       {step.step_number === 4 && state.grn && (
-  <p className="mt-1 text-[11px] text-[var(--ink-2)]">
-    GRN <span className="mono">{state.grn.grn_number}</span> ·{' '}
-    {state.grn.lines
-      .map((line) => `<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>l</mi><mi>i</mi><mi>n</mi><mi>e</mi><mi mathvariant="normal">.</mi><mi>i</mi><mi>t</mi><mi>e</mi><msub><mi>m</mi><mi>n</mi></msub><mi>a</mi><mi>m</mi><mi>e</mi></mrow><annotation encoding="application/x-tex">{line.item_name} </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0197em;">l</span><span class="mord mathnormal">in</span><span class="mord mathnormal">e</span><span class="mord">.</span><span class="mord mathnormal">i</span><span class="mord mathnormal">t</span><span class="mord mathnormal">e</span><span class="mord"><span class="mord mathnormal">m</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathnormal">am</span><span class="mord mathnormal">e</span></span></span></span></span>{num(line.quantity)} ${line.unit}`)
-      .join(', ')}
-  </p>
-)}
-
+                        <div className="mt-1.5 border-t border-[var(--line)]/60 pt-1.5">
+                          <p className="text-[11px] text-[var(--ink-2)]">
+                            GRN <span className="mono">{state.grn.grn_number}</span>
+                          </p>
+                          <ul className="mt-1 space-y-0.5">
+                            {(state.grn.lines ?? []).map((line, index) => (
+                              // Built as real JSX children, not one template string, so the
+                              // name and quantity always render as values — never as code.
+                              <li
+                                key={line.item_name + '-' + index}
+                                className="flex items-center gap-2 text-[11px]"
+                              >
+                                <span className="min-w-0 flex-1 truncate text-[var(--ink-2)]">
+                                  {line.item_name}
+                                </span>
+                                <span className="mono shrink-0 text-[var(--muted)]">
+                                  {num(line.quantity)} {line.unit}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
 
                       {step.step_number === 5 && state.ims && (
                         <p className="mt-1 text-[11px] text-[var(--ink-2)]">
