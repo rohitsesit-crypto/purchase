@@ -12,6 +12,7 @@ import type {
 } from './fms/types';
 
 import { demoRequest } from './fms/demo';
+import { withSettledPayouts } from './fms/workflow';
 
 /**
  * Thin client for the Google Apps Script Web App (appsscript/Code.gs).
@@ -184,10 +185,28 @@ const normalizeState = (state: FmsEntryState): FmsEntryState => {
     ? { ...state.grn, lines: asList<GrnLine>(state.grn.lines) }
     : null;
 
+  // Step 7 is decided by the money: a response whose step row still says
+  // "In Progress" while the payouts cover the gross total is shown as Completed,
+  // so the desk never reads a settled bill as outstanding.
+  const steps = withSettledPayouts(asList(state.steps), state.record?.gross_total, asList(state.payouts));
+  const isCompleted = steps.length > 0 && steps.every((step) => step.status === 'Completed' || step.status === 'Skipped');
+
   return {
     ...state,
+    record: state.record
+      ? {
+          ...state.record,
+          // The header must agree with the steps it sits above.
+          is_completed: isCompleted,
+          overall_status: isCompleted
+            ? 'Completed'
+            : steps.some((step) => step.actual_completed_at)
+              ? 'In Progress'
+              : 'Pending',
+        }
+      : state.record,
     requirements: asList(state.requirements),
-    steps: asList(state.steps),
+    steps,
     receipts,
     allocations: asList(state.allocations),
     grn,
@@ -221,14 +240,7 @@ export const fmsApi = {
   formFilledBy: async () => (await request<UserTaskBoard>('listTasks')).form_filled_by ?? [],
 
   submitNewFms: (draft: FmsDraft, requestKey: string) =>
-    request<{
-      ok: boolean;
-      fms_ids: string[];
-      /** One entry per record actually created, paired with its company. */
-      created?: { id: string; company_name: string }[];
-      /** Rows refused because an identical record already exists. */
-      skipped?: { company_name: string; fms_id: string }[];
-    }>('submitNewFms', { ...draft, request_key: requestKey }),
+    request<{ ok: boolean; fms_ids: string[] }>('submitNewFms', { ...draft, request_key: requestKey }),
 
   submitStep: async (payload: SubmitStepPayload) =>
     normalizeState(await request<FmsEntryState>('submitStep', payload)),
