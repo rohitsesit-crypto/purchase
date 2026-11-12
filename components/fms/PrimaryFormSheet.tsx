@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, Eye, FileSpreadsheet, Pencil, Plus, Trash2, Upload } from 'lucide-react';
-import { FmsIdLabel, Field, Micro, Sheet } from './ui';
+import { Field, Micro, Sheet } from './ui';
 import { fmsApi } from '@/lib/api';
-import { parseCompanySheet, type DuplicateRow } from '@/lib/excel';
+import { parseCompanySheet } from '@/lib/excel';
 import type { ClientRecord, CompanyDraft, SheetCompanyRow } from '@/lib/fms/types';
 import { errorMessage, money, requestKey } from '@/lib/format';
 
@@ -83,17 +83,11 @@ export const PrimaryFormSheet = ({
   onClose: () => void;
   onSubmitted: (count: number, ids: string[]) => void;
 }) => {
-  const [stage, setStage] = useState<'upload' | 'list' | 'company' | 'view' | 'created'>('upload');
+  const [stage, setStage] = useState<'upload' | 'list' | 'company' | 'view'>('upload');
   const [location, setLocation] = useState<'Mumbai' | 'Boisar'>('Mumbai');
   const [companies, setCompanies] = useState<CompanyDraft[]>([]);
   const [memory, setMemory] = useState<ClientRecord[]>([]);
   const [missing, setMissing] = useState<string[]>([]);
-  /** Rows dropped because every one of their details repeated an earlier row. */
-  const [duplicates, setDuplicates] = useState<DuplicateRow[]>([]);
-  /** The numbers issued by the last submission, shown before the sheet closes. */
-  const [created, setCreated] = useState<{ id: string; company: string }[]>([]);
-  /** Rows the backend refused because the identical record already exists. */
-  const [skipped, setSkipped] = useState<{ company_name: string; fms_id: string }[]>([]);
   const [fileName, setFileName] = useState('');
   const [editing, setEditing] = useState<number | null>(null);
   const [viewing, setViewing] = useState<number | null>(null);
@@ -110,8 +104,6 @@ export const PrimaryFormSheet = ({
     setStage('upload');
     setCompanies([]);
     setMissing([]);
-    setDuplicates([]);
-    setCreated([]);
     setFileName('');
     setEditing(null);
     setViewing(null);
@@ -193,9 +185,6 @@ export const PrimaryFormSheet = ({
       }
 
       setMissing(parsed.missingColumns);
-      // Rows that repeated every detail of an earlier row are reported, not
-      // silently merged — a same-named company with a different PO is kept.
-      setDuplicates(parsed.duplicates);
       setFileName(file.name);
       setCompanies(
         parsed.companies.map((row) => {
@@ -264,17 +253,8 @@ export const PrimaryFormSheet = ({
         { location, form_filled_by: formFilledBy, remark, companies },
         requestKey(),
       );
-      // Pair each issued number with its company so the operator can read the
-      // references straight away instead of hunting for them in the register.
-      const issued = (result.created ?? result.fms_ids.map((id, index) => ({
-        id,
-        company_name: companies[index]?.company_name ?? '',
-      }))).map((entry) => ({ id: entry.id, company: entry.company_name }));
-      setCreated(issued);
-      setSkipped(result.skipped ?? []);
       onSubmitted(result.fms_ids.length, result.fms_ids);
-      // Stay open on the confirmation screen; the numbers are part of the result.
-      setStage('created');
+      onClose();
     } catch (caught) {
       setError(errorMessage(caught, 'The form could not be submitted.'));
     } finally {
@@ -286,12 +266,7 @@ export const PrimaryFormSheet = ({
   const viewingCompany = viewing !== null ? companies[viewing] : null;
 
   const footer =
-    stage === 'created' ? (
-      <button type="button" className="btn btn-primary" onClick={onClose}>
-        <Check className="h-3.5 w-3.5" />
-        Done
-      </button>
-    ) : stage === 'company' ? (
+    stage === 'company' ? (
       <>
         <button type="button" className="btn btn-outline" onClick={() => setStage('list')}>
           Cancel
@@ -418,75 +393,12 @@ export const PrimaryFormSheet = ({
         </div>
       )}
 
-      {stage === 'created' && (
-        <div className="space-y-3">
-          <div className="rounded-[7px] border border-[var(--forest)]/40 bg-[var(--forest-tint)] px-3 py-2">
-            <p className="text-[12.5px] font-semibold text-[var(--forest)]">
-              {created.length} {created.length === 1 ? 'FMS record created' : 'FMS records created'}
-            </p>
-            <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--ink-2)]">
-              Each record now carries its own FMS number. Quote it on bills, emails and follow-up calls.
-            </p>
-          </div>
-
-          <ul className="divide-y divide-[var(--line)] rounded-[7px] border border-[var(--line)]">
-            {created.map((entry) => (
-              <li key={entry.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                <span className="mono w-4 shrink-0 text-[10px] text-[var(--faint)]">
-                  {created.indexOf(entry) + 1}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--ink)]">{entry.company}</span>
-                <FmsIdLabel id={entry.id} />
-              </li>
-            ))}
-          </ul>
-
-          {/* The same entry typed twice is refused by the backend, not created twice. */}
-          {skipped.length > 0 && (
-            <div className="rounded-[7px] border border-[var(--steel)]/40 bg-[var(--steel-tint)] px-3 py-2">
-              <p className="text-[11.5px] font-semibold text-[var(--steel)]">
-                {skipped.length} {skipped.length === 1 ? 'entry already existed' : 'entries already existed'}
-              </p>
-              <ul className="mt-1 space-y-0.5">
-                {skipped.map((entry) => (
-                  <li key={`${entry.company_name}-${entry.fms_id}`} className="mono text-[10.5px] text-[var(--ink-2)]">
-                    {entry.company_name} — already recorded as {entry.fms_id}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-
       {stage === 'list' && (
         <div className="space-y-3">
           {missing.length > 0 && (
             <p className="rounded-[7px] border border-[var(--amber)]/40 bg-[var(--amber-tint)] px-3 py-2 text-[11.5px] text-[var(--amber)]">
               These columns were not found in the file and will stay blank: {missing.join(', ')}.
             </p>
-          )}
-
-          {duplicates.length > 0 && (
-            <div className="rounded-[7px] border border-[var(--steel)]/40 bg-[var(--steel-tint)] px-3 py-2">
-              <p className="text-[11.5px] font-semibold text-[var(--steel)]">
-                {duplicates.length} repeated {duplicates.length === 1 ? 'row was' : 'rows were'} skipped
-              </p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--ink-2)]">
-                A row is only treated as a repeat when company, supplier, PO number, pay terms and gross total all
-                match. Same company name with any other detail different is kept as its own entry.
-              </p>
-              <ul className="mt-1 space-y-0.5">
-                {duplicates.slice(0, 6).map((row) => (
-                  <li key={`${row.row}-${row.first_row}`} className="mono text-[10.5px] text-[var(--ink-2)]">
-                    Row {row.row} — {row.company_name} (same as row {row.first_row})
-                  </li>
-                ))}
-                {duplicates.length > 6 && (
-                  <li className="mono text-[10.5px] text-[var(--muted)]">and {duplicates.length - 6} more</li>
-                )}
-              </ul>
-            </div>
           )}
 
           <div className="flex items-center justify-between">
